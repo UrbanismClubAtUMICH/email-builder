@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-g">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Club Email Builder</title>
     <!-- Load Tailwind CSS for styling the builder UI -->
@@ -37,7 +37,11 @@
             <!-- Section 1: Logo -->
             <div class="mb-6">
                 <label for="logoUrl" class="block text-sm font-medium text-gray-700 mb-1">Club Logo URL</label>
-                <input type="text" id="logoUrl" class="w-full p-2 border border-gray-300 rounded-md" value="https://placehold.co/180x60/ffe575/121224?text=Club+Logo">
+                <input type="text" id="logoUrl" class="w-full p-2 border border-gray-300 rounded-md" value="UrbanismLogoWText.png">
+                <div class="mt-2">
+                    <label for="logoScale" class="block text-sm font-medium text-gray-700 mb-1">Logo Scale: <span id="logoScaleLabel">150</span>%</label>
+                    <input type="range" id="logoScale" class="w-full" min="10" max="200" value="150">
+                </div>
             </div>
 
             <!-- Section 2: Main Body -->
@@ -164,11 +168,14 @@ Add as many paragraphs as you need by hitting 'Enter'.</textarea>
             const copyButton = document.getElementById('copyButton');
             const refreshButton = document.getElementById('refreshButton');
             const copySuccessMessage = document.getElementById('copy-success-message');
+            const logoScaleSlider = document.getElementById('logoScale');
+            const logoScaleLabel = document.getElementById('logoScaleLabel');
 
             // --- Core Function: Update Preview ---
             function updatePreview() {
                 const data = {
                     logoUrl: document.getElementById('logoUrl').value,
+                    logoScale: document.getElementById('logoScale').value,
                     mainHeading: document.getElementById('mainHeading').value,
                     mainContent: document.getElementById('mainContent').value,
                     buttonText: document.getElementById('buttonText').value,
@@ -192,9 +199,12 @@ Add as many paragraphs as you need by hitting 'Enter'.</textarea>
                     });
                 });
 
-                // Collect all dynamic meme URLs
+                // Collect all dynamic meme URLs and scales
                 document.querySelectorAll('.meme-item').forEach(item => {
-                    data.memes.push(item.querySelector('.meme-url').value);
+                    data.memes.push({
+                        url: item.querySelector('.meme-url').value,
+                        scale: item.querySelector('.meme-scale').value
+                    });
                 });
 
                 // Generate the HTML and set it as the iframe's content
@@ -222,12 +232,18 @@ Add as many paragraphs as you need by hitting 'Enter'.</textarea>
             }
 
             // --- Function to add a new meme item ---
-            function addMemeItem(url = '') {
+            function addMemeItem(url = '', scale = '150') {
                 const div = document.createElement('div');
-                div.className = 'meme-item flex gap-2 items-center';
+                div.className = 'meme-item space-y-2';
                 div.innerHTML = `
-                    <input type="text" class="meme-url w-full p-2 border border-gray-300 rounded-md" placeholder="Image URL (e.g. https://...)" value="${url}">
-                    <button class="remove-item text-red-500 hover:text-red-700 font-bold p-1">✕</button>
+                    <div class="flex gap-2 items-center">
+                        <input type="text" class="meme-url w-full p-2 border border-gray-300 rounded-md" placeholder="Image URL (e.g. https://...)" value="${url}">
+                        <button class="remove-item text-red-500 hover:text-red-700 font-bold p-1">✕</button>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Meme Scale: <span class="memeScaleLabel">${scale}</span>%</label>
+                        <input type="range" class="meme-scale w-full" min="10" max="200" value="${scale}">
+                    </div>
                 `;
                 // Add listener to remove button
                 div.querySelector('.remove-item').addEventListener('click', () => {
@@ -235,7 +251,16 @@ Add as many paragraphs as you need by hitting 'Enter'.</textarea>
                     updatePreview();
                 });
                 // Add listener to input
-                div.querySelector('input').addEventListener('input', updatePreview);
+                div.querySelector('.meme-url').addEventListener('input', updatePreview);
+                
+                // Add listener to slider
+                const slider = div.querySelector('.meme-scale');
+                const label = div.querySelector('.memeScaleLabel');
+                slider.addEventListener('input', () => {
+                    label.textContent = slider.value; // Update label
+                    updatePreview(); // Update preview
+                });
+
                 memesList.appendChild(div);
             }
 
@@ -264,6 +289,7 @@ Add as many paragraphs as you need by hitting 'Enter'.</textarea>
             function getCurrentData() {
                 const data = {
                     logoUrl: document.getElementById('logoUrl').value,
+                    logoScale: document.getElementById('logoScale').value,
                     mainHeading: document.getElementById('mainHeading').value,
                     mainContent: document.getElementById('mainContent').value,
                     buttonText: document.getElementById('buttonText').value,
@@ -285,7 +311,10 @@ Add as many paragraphs as you need by hitting 'Enter'.</textarea>
                     });
                 });
                 document.querySelectorAll('.meme-item').forEach(item => {
-                    data.memes.push(item.querySelector('.meme-url').value);
+                    data.memes.push({
+                        url: item.querySelector('.meme-url').value,
+                        scale: item.querySelector('.meme-scale').value
+                    });
                 });
                 return data;
             }
@@ -297,12 +326,17 @@ Add as many paragraphs as you need by hitting 'Enter'.</textarea>
             addMemeButton.addEventListener('click', () => addMemeItem());
             copyButton.addEventListener('click', copyHtmlToClipboard);
             refreshButton.addEventListener('click', updatePreview);
+            
+            // Listener for the main logo slider label
+            logoScaleSlider.addEventListener('input', () => {
+                logoScaleLabel.textContent = logoScaleSlider.value;
+            });
 
             // --- Load initial data ---
             addEventItem('Monday', 'Event details go here. This can be a short description.');
             addEventItem('Wednesday', 'More event details. If you write a longer description, this block will also expand perfectly to fit it.');
-            addMemeItem('https://placehold.co/520x300/eeeeee/999999?text=Meme+Image+1');
-            addMemeItem('https://placehold.co/520x300/eeeeee/999999?text=Meme+Image+2');
+            addMemeItem('https://placehold.co/520x300/eeeeee/999999?text=Meme+Image+1', '150');
+            addMemeItem('https://placehold.co/520x300/eeeeee/999999?text=Meme+Image+2', '150');
 
             // --- Initial preview render ---
             updatePreview();
@@ -354,11 +388,16 @@ Add as many paragraphs as you need by hitting 'Enter'.</textarea>
 
             // 4. Process meme images
             const memesHtml = data.memes
-                .filter(url => url.trim() !== '') // Only include if URL is not empty
-                .map(url => `
-                <!-- MEME: ${url} -->
-                <img src="${url}" alt="Funny Meme" width="520" style="max-width: 100%; height: auto; display: block; margin-bottom: 20px; border-radius: 5px;">
-            `).join('');
+                .filter(meme => meme.url.trim() !== '') // Only include if URL is not empty
+                .map(meme => {
+                    const memeFinalWidth = 520 * (meme.scale / 100);
+                    return `
+                    <!-- MEME: ${meme.url} -->
+                    <img src="${meme.url}" alt="Funny Meme" width="${memeFinalWidth}" style="max-width: 100%; height: auto; display: block; margin-bottom: 20px; border-radius: 5px;">
+                `}).join('');
+
+            // 5. Process logo scale
+            const logoFinalWidth = 180 * (data.logoScale / 100);
 
             // --- Return the full HTML string ---
             // This is the template from before, but with JS variables
@@ -393,7 +432,7 @@ Add as many paragraphs as you need by hitting 'Enter'.</textarea>
                     <!-- SECTION 1: CLUB LOGO BANNER -->
                     <tr>
                         <td align="center" style="background-color: #2f2f81; padding: 30px 20px;">
-                            <img src="${data.logoUrl}" alt="Club Logo" width="180" style="display: block; width: 180px; max-width: 100%; height: auto; font-family: Arial, sans-serif; color: #ffffff; font-size: 18px;">
+                            <img src="${data.logoUrl}" alt="Club Logo" width="${logoFinalWidth}" style="display: block; width: ${logoFinalWidth}px; max-width: 100%; height: auto; font-family: Arial, sans-serif; color: #ffffff; font-size: 18px;">
                         </td>
                     </tr>
 
