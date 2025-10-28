@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Club Email Builder</title>
+    <!-- Load Tailwind CSS for styling the builder UI -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* A little custom style for the iframe preview */
+        #previewFrame {
+            width: 100%;
+            height: 100%;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.5rem;
+            transform-origin: top left;
+            /* We can add a scale to show more, but 1.0 is safest */
+        }
+        /* Hide scrollbar on the builder controls, but still scrollable */
+        #builder-controls::-webkit-scrollbar {
+            display: none;
+        }
+        #builder-controls {
+            -ms-overflow-style: none; /* IE and Edge */
+            scrollbar-width: none; /* Firefox */
+        }
+    </style>
+</head>
+<body class="bg-slate-100 font-sans">
+
+    <div class="flex flex-col lg:flex-row w-full h-screen">
+
+        <!-- ===== LEFT COLUMN: BUILDER CONTROLS ===== -->
+        <div id="builder-controls" class="w-full lg:w-1/2 p-6 overflow-y-auto bg-white shadow-lg">
+            <h1 class="text-3xl font-bold text-[#2f2f81] mb-6">Club Email Builder</h1>
+
+            <!-- Section 1: Logo -->
+            <div class="mb-6">
+                <label for="logoUrl" class="block text-sm font-medium text-gray-700 mb-1">Club Logo URL</label>
+                <input type="text" id="logoUrl" class="w-full p-2 border border-gray-300 rounded-md" value="https://placehold.co/180x60/ffe575/121224?text=Club+Logo">
+            </div>
+
+            <!-- Section 2: Main Body -->
+            <div class="mb-6 p-4 bg-slate-50 rounded-lg border">
+                <h2 class="text-xl font-semibold text-[#121224] mb-3">Main Content</h2>
+                <div class="mb-4">
+                    <label for="mainHeading" class="block text-sm font-medium text-gray-700 mb-1">Main Heading</label>
+                    <input type="text" id="mainHeading" class="w-full p-2 border border-gray-300 rounded-md" value="Your Main Heading Here">
+                </div>
+                <div class="mb-4">
+                    <label for="mainContent" class="block text-sm font-medium text-gray-700 mb-1">Main Body Text (use new lines for paragraphs)</label>
+                    <textarea id="mainContent" rows="6" class="w-full p-2 border border-gray-300 rounded-md">This is the main body of your email. You can write your announcements, news, and updates here.
+
+Add as many paragraphs as you need by hitting 'Enter'.</textarea>
+                </div>
+                <div class="mb-2">
+                    <label for="buttonText" class="block text-sm font-medium text-gray-700 mb-1">Button Text (optional)</label>
+                    <input type="text" id="buttonText" class="w-full p-2 border border-gray-300 rounded-md" value="Learn More">
+                </div>
+                <div>
+                    <label for="buttonUrl" class="block text-sm font-medium text-gray-700 mb-1">Button URL (optional)</label>
+                    <input type="text" id="buttonUrl" class="w-full p-2 border border-gray-300 rounded-md" value="https://example.com">
+                </div>
+            </div>
+
+            <!-- Section 3: Weekly Events -->
+            <div class="mb-6 p-4 bg-slate-50 rounded-lg border">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-xl font-semibold text-[#121224]">Weekly Events</h2>
+                    <button id="addEventButton" class="text-sm bg-[#2f2f81] text-white py-1 px-3 rounded-md hover:bg-opacity-90 transition-colors">
+                        + Add Event
+                    </button>
+                </div>
+                <div id="events-list" class="space-y-3">
+                    <!-- Event items will be added here by JS -->
+                </div>
+            </div>
+            
+            <!-- Section 4: Memes -->
+            <div class="mb-6 p-4 bg-slate-50 rounded-lg border">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-xl font-semibold text-[#121224]">Meme Images</h2>
+                    <button id="addMemeButton" class="text-sm bg-[#2f2f81] text-white py-1 px-3 rounded-md hover:bg-opacity-90 transition-colors">
+                        + Add Meme
+                    </button>
+                </div>
+                <div id="memes-list" class="space-y-3">
+                    <!-- Meme inputs will be added here by JS -->
+                </div>
+            </div>
+
+        </div>
+
+        <!-- ===== RIGHT COLUMN: PREVIEW & EXPORT ===== -->
+        <div class="w-full lg:w-1/2 p-6 flex flex-col" style="height: 100vh;">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold text-gray-800">Preview</h2>
+                <div class="flex gap-2">
+                    <button id="refreshButton" class="bg-gray-200 text-gray-800 py-2 px-4 rounded-md hover:bg-gray-300 transition-colors">Refresh</button>
+                    <button id="copyButton" class="bg-[#ffe575] text-[#121224] font-bold py-2 px-4 rounded-md hover:bg-opacity-90 transition-all">
+                        Copy HTML Code
+                    </button>
+                </div>
+            </div>
+            <div id="copy-success-message" class="text-green-600 font-medium mb-2 h-6" style="display: none;">
+                Copied to clipboard!
+            </div>
+            
+            <!-- Preview Iframe -->
+            <div class="flex-1 w-full bg-white shadow-inner rounded-lg">
+                <iframe id="previewFrame" title="Email Preview" class="w-full h-full border-0"></iframe>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Get all interactive elements
+            const inputs = document.querySelectorAll('#builder-controls input, #builder-controls textarea');
+            const addEventButton = document.getElementById('addEventButton');
+            const addMemeButton = document.getElementById('addMemeButton');
+            const eventsList = document.getElementById('events-list');
+            const memesList = document.getElementById('memes-list');
+            const previewFrame = document.getElementById('previewFrame');
+            const copyButton = document.getElementById('copyButton');
+            const refreshButton = document.getElementById('refreshButton');
+            const copySuccessMessage = document.getElementById('copy-success-message');
+
+            // --- Core Function: Update Preview ---
+            function updatePreview() {
+                const data = {
+                    logoUrl: document.getElementById('logoUrl').value,
+                    mainHeading: document.getElementById('mainHeading').value,
+                    mainContent: document.getElementById('mainContent').value,
+                    buttonText: document.getElementById('buttonText').value,
+                    buttonUrl: document.getElementById('buttonUrl').value,
+                    events: [],
+                    memes: []
+                };
+
+                // Collect all dynamic event items
+                document.querySelectorAll('.event-item').forEach(item => {
+                    data.events.push({
+                        day: item.querySelector('.event-day').value,
+                        desc: item.querySelector('.event-desc').value
+                    });
+                });
+
+                // Collect all dynamic meme URLs
+                document.querySelectorAll('.meme-item').forEach(item => {
+                    data.memes.push(item.querySelector('.meme-url').value);
+                });
+
+                // Generate the HTML and set it as the iframe's content
+                const emailHtml = generateEmailHtml(data);
+                previewFrame.srcdoc = emailHtml;
+            }
+
+            // --- Function to add a new event item ---
+            function addEventItem(day = '', desc = '') {
+                const div = document.createElement('div');
+                div.className = 'event-item flex gap-2 items-center';
+                div.innerHTML = `
+                    <input type="text" class="event-day w-1/3 p-2 border border-gray-300 rounded-md" placeholder="Day (e.g. Monday)" value="${day}">
+                    <input type="text" class="event-desc w-2/3 p-2 border border-gray-300 rounded-md" placeholder="Event Description" value="${desc}">
+                    <button class="remove-item text-red-500 hover:text-red-700 font-bold p-1">✕</button>
+                `;
+                // Add listener to remove button
+                div.querySelector('.remove-item').addEventListener('click', () => {
+                    div.remove();
+                    updatePreview();
+                });
+                // Add listeners to inputs to update preview on change
+                div.querySelectorAll('input').forEach(input => input.addEventListener('input', updatePreview));
+                eventsList.appendChild(div);
+            }
+
+            // --- Function to add a new meme item ---
+            function addMemeItem(url = '') {
+                const div = document.createElement('div');
+                div.className = 'meme-item flex gap-2 items-center';
+                div.innerHTML = `
+                    <input type="text" class="meme-url w-full p-2 border border-gray-300 rounded-md" placeholder="Image URL (e.g. https://...)" value="${url}">
+                    <button class="remove-item text-red-500 hover:text-red-700 font-bold p-1">✕</button>
+                `;
+                // Add listener to remove button
+                div.querySelector('.remove-item').addEventListener('click', () => {
+                    div.remove();
+                    updatePreview();
+                });
+                // Add listener to input
+                div.querySelector('input').addEventListener('input', updatePreview);
+                memesList.appendChild(div);
+            }
+
+            // --- Function to copy generated HTML to clipboard ---
+            function copyHtmlToClipboard() {
+                const emailHtml = generateEmailHtml(getCurrentData()); // Get fresh data
+                
+                // Use a temporary textarea to copy text
+                const tempTextarea = document.createElement('textarea');
+                tempTextarea.value = emailHtml;
+                document.body.appendChild(tempTextarea);
+                tempTextarea.select();
+                try {
+                    document.execCommand('copy');
+                    copySuccessMessage.style.display = 'block';
+                    setTimeout(() => {
+                        copySuccessMessage.style.display = 'none';
+                    }, 2000);
+                } catch (err) {
+                    console.error('Failed to copy text: ', err);
+                }
+                document.body.removeChild(tempTextarea);
+            }
+
+            // --- Helper to get current data for copy function ---
+            function getCurrentData() {
+                const data = {
+                    logoUrl: document.getElementById('logoUrl').value,
+                    mainHeading: document.getElementById('mainHeading').value,
+                    mainContent: document.getElementById('mainContent').value,
+                    buttonText: document.getElementById('buttonText').value,
+                    buttonUrl: document.getElementById('buttonUrl').value,
+                    events: [],
+                    memes: []
+                };
+                document.querySelectorAll('.event-item').forEach(item => {
+                    data.events.push({
+                        day: item.querySelector('.event-day').value,
+                        desc: item.querySelector('.event-desc').value
+                    });
+                });
+                document.querySelectorAll('.meme-item').forEach(item => {
+                    data.memes.push(item.querySelector('.meme-url').value);
+                });
+                return data;
+            }
+
+
+            // --- Add initial event listeners ---
+            inputs.forEach(input => input.addEventListener('input', updatePreview));
+            addEventButton.addEventListener('click', () => addEventItem());
+            addMemeButton.addEventListener('click', () => addMemeItem());
+            copyButton.addEventListener('click', copyHtmlToClipboard);
+            refreshButton.addEventListener('click', updatePreview);
+
+            // --- Load initial data ---
+            addEventItem('Monday', 'Event details go here. This can be a short description.');
+            addEventItem('Wednesday', 'More event details. If you write a longer description, this block will also expand perfectly to fit it.');
+            addMemeItem('https://placehold.co/520x300/eeeeee/999999?text=Meme+Image+1');
+            addMemeItem('https://placehold.co/520x300/eeeeee/999999?text=Meme+Image+2');
+
+            // --- Initial preview render ---
+            updatePreview();
+        });
+
+
+        // ===== THE TEMPLATE GENERATOR FUNCTION =====
+        // This function holds the original HTML template and injects the
+        // data from the builder form.
+        // ===========================================
+        function generateEmailHtml(data) {
+            
+            // --- Process dynamic content ---
+            
+            // 1. Process main content text (convert newlines to <p> tags)
+            const mainParagraphs = data.mainContent
+                .split('\n')
+                .filter(p => p.trim() !== '') // Remove empty lines
+                .map(p => `
+                    <p style="margin-top: 0; margin-bottom: 20px;">
+                        ${p.trim()}
+                    </p>
+                `).join('');
+
+            // 2. Process button (only show if text and URL are present)
+            const buttonHtml = (data.buttonText && data.buttonUrl) ? `
+                <!-- A simple Call-to-Action button -->
+                <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin-top: 20px;">
+                    <tr>
+                        <td align="center" style="border-radius: 5px; background-color: #ffe575;">
+                            <a href="${data.buttonUrl}" target="_blank" style="font-size: 16px; font-family: Arial, sans-serif; font-weight: bold; color: #121224; text-decoration: none; padding: 12px 25px; border-radius: 5px; display: inline-block;">
+                                ${data.buttonText}
+                            </a>
+                        </td>
+                    </tr>
+                </table>
+            ` : '';
+
+            // 3. Process event list
+            const eventsHtml = data.events.map(event => `
+                <tr>
+                    <td style="padding-bottom: 15px; font-size: 16px; line-height: 1.5;">
+                        <strong>${event.day}:</strong> ${event.desc}
+                    </td>
+                </tr>
+            `).join('');
+
+            // 4. Process meme images
+            const memesHtml = data.memes
+                .filter(url => url.trim() !== '') // Only include if URL is not empty
+                .map(url => `
+                <!-- MEME: ${url} -->
+                <img src="${url}" alt="Funny Meme" width="520" style="max-width: 100%; height: auto; display: block; margin-bottom: 20px; border-radius: 5px;">
+            `).join('');
+
+            // --- Return the full HTML string ---
+            // This is the template from before, but with JS variables
+            // like ${data.logoUrl} injected.
+            return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>Club Newsletter</title>
+    <style>
+        body, table, td, a { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+        table, td { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+        img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
+        body { height: 100% !important; margin: 0 !important; padding: 0 !important; width: 100% !important; background-color: #f4f4f4; }
+        @media screen and (max-width: 600px) {
+            .email-container {
+                width: 100% !important;
+                max-width: 100% !important;
+            }
+        }
+    </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f4f4f4;">
+    <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f4f4f4;">
+        <tr>
+            <td align="center" style="padding: 20px 0;">
+                <table role="presentation" class="email-container" border="0" cellpadding="0" cellspacing="0" width="600" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden;">
+                    
+                    <!-- SECTION 1: CLUB LOGO BANNER -->
+                    <tr>
+                        <td align="center" style="background-color: #2f2f81; padding: 30px 20px;">
+                            <img src="${data.logoUrl}" alt="Club Logo" width="180" style="display: block; width: 180px; max-width: 100%; height: auto; font-family: Arial, sans-serif; color: #ffffff; font-size: 18px;">
+                        </td>
+                    </tr>
+
+                    <!-- SECTION 2: MAIN EMAIL BODY -->
+                    <tr>
+                        <td style="padding: 40px 40px 30px 40px; color: #121224; font-family: Arial, sans-serif; font-size: 16px; line-height: 1.6;">
+                            <h1 style="margin-top: 0; margin-bottom: 20px; font-size: 24px; color: #2f2f81;">
+                                ${data.mainHeading}
+                            </h1>
+                            ${mainParagraphs}
+                            ${buttonHtml}
+                        </td>
+                    </tr>
+
+                    <!-- SECTION 3: WEEKLY EVENTS BLOCK -->
+                    ${eventsHtml.length > 0 ? `
+                    <tr>
+                        <td style="background-color: #ffe575; padding: 30px 40px; color: #121224; font-family: Arial, sans-serif;">
+                            <h2 style="margin-top: 0; margin-bottom: 20px; font-size: 20px; color: #2f2f81;">
+                                This Week's Events
+                            </h2>
+                            <table role="presentation" border="0" cellpadding="0" cellspacing="0" width="100%">
+                                ${eventsHtml}
+                            </table>
+                        </td>
+                    </tr>
+                    ` : ''}
+
+                    <!-- SECTION 4: MEME IMAGES -->
+                    ${memesHtml.length > 0 ? `
+                    <tr>
+                        <td style="padding: 30px 40px; text-align: center; background-color: #ffffff;">
+                            <h2 style="margin-top: 0; margin-bottom: 20px; font-size: 20px; color: #2f2f81; font-family: Arial, sans-serif;">
+                                Just for Fun
+                            </h2>
+                            ${memesHtml}
+                        </td>
+                    </tr>
+                    ` : ''}
+
+                    <!-- SECTION 5: FOOTER -->
+                    <tr>
+                        <td style="background-color: #2f2f81; padding: 40px 40px; text-align: center; color: #ffffff; font-family: Arial, sans-serif; font-size: 12px; line-height: 1.5;">
+                            <p style="margin-top: 0; margin-bottom: 10px;">
+                                © 2025 [Your Club Name Here]. All Rights Reserved.
+                            </p>
+                            <p style="margin-top: 0; margin-bottom: 10px;">
+                                [123 Club Street, City, State 12345]
+                            </p>
+                            <p style="margin-top: 0; margin-bottom: 0;">
+                                Want to change how you receive these emails?
+                                <br>
+                                <a href="#" target="_blank" style="color: #ffe575; text-decoration: underline;">Unsubscribe</a>
+                            </p>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+            `;
+        }
+
+    </script>
+</body>
+</html>
